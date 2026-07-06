@@ -26,6 +26,11 @@ def convert_to_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
+def reduce_noise(grayscale):
+    """Reduce small image details with a 5x5 Gaussian filter."""
+    return cv2.GaussianBlur(grayscale, (5, 5), 0)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Detect and read a vehicle plate.")
@@ -52,6 +57,11 @@ def main() -> None:
     grayscale_path = Path("output/01_grayscale.jpg")
     save_image(grayscale, grayscale_path)
     print(f"Grayscale image saved: {grayscale_path}")
+
+    blurred = reduce_noise(grayscale)
+    blurred_path = Path("output/02_blurred.jpg")
+    save_image(blurred, blurred_path)
+    print(f"Blurred image saved: {blurred_path}")
 
 
 if __name__ == "__main__":
