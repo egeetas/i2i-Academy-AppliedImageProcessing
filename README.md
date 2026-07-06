@@ -7,3 +7,11 @@ classical image-processing techniques and OCR.
 
 Project setup is in progress. Implementation steps and usage instructions will
 be added as the assignment is completed.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```

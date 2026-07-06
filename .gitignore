@@ -1,5 +1,6 @@
 # Assignment document and local evidence must not be published.
 AppliedImageProcessing.docx
+~$*.docx
 screenshots/
 recordings/
 
@@ -13,4 +14,3 @@ venv/
 .DS_Store
 .idea/
 .vscode/
-
