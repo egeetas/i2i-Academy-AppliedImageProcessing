@@ -1,0 +1,16 @@
+# Assignment document and local evidence must not be published.
+AppliedImageProcessing.docx
+screenshots/
+recordings/
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local OCR and editor artifacts
+.DS_Store
+.idea/
+.vscode/
+
