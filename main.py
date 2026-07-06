@@ -14,6 +14,18 @@ def load_image(image_path: Path):
     return image
 
 
+def save_image(image, output_path: Path) -> None:
+    """Save a processing result or raise a clear error."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(output_path), image):
+        raise OSError(f"Image could not be saved: {output_path}")
+
+
+def convert_to_grayscale(image):
+    """Convert a BGR image to a single-channel grayscale image."""
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Detect and read a vehicle plate.")
@@ -35,6 +47,11 @@ def main() -> None:
 
     print(f"Image loaded: {args.image}")
     print(f"Image size: {width}x{height}")
+
+    grayscale = convert_to_grayscale(image)
+    grayscale_path = Path("output/01_grayscale.jpg")
+    save_image(grayscale, grayscale_path)
+    print(f"Grayscale image saved: {grayscale_path}")
 
 
 if __name__ == "__main__":
