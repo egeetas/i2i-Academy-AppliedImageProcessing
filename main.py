@@ -1,9 +1,12 @@
 """Automated License Plate Recognition application entry point."""
 
 import argparse
+import re
+import warnings
 from pathlib import Path
 
 import cv2
+import easyocr
 
 
 def load_image(image_path: Path):
@@ -86,6 +89,27 @@ def crop_with_padding(image, bounds):
     return image[y1:y2, x1:x2], (x1, y1, x2 - x1, y2 - y1)
 
 
+def recognize_plate(plate):
+    """Read uppercase Latin letters and digits from a cropped plate."""
+    warnings.filterwarnings("ignore", message=".*pin_memory.*", category=UserWarning)
+    reader = easyocr.Reader(
+        ["en"], gpu=False, model_storage_directory=".easyocr", verbose=False
+    )
+    results = reader.readtext(
+        plate,
+        detail=1,
+        allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    )
+    if not results:
+        raise RuntimeError("OCR could not recognize text on the license plate.")
+
+    _, text, confidence = max(results, key=lambda result: result[2])
+    cleaned_text = re.sub(r"[^A-Z0-9]", "", text.upper())
+    if not cleaned_text:
+        raise RuntimeError("OCR returned no valid license plate characters.")
+    return cleaned_text, float(confidence)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Detect and read a vehicle plate.")
@@ -138,6 +162,10 @@ def main() -> None:
     print(f"Plate bounds: x={x}, y={y}, width={width}, height={height}")
     print(f"Detected plate image saved: {detected_path}")
     print(f"Cropped plate image saved: {plate_path}")
+
+    plate_text, confidence = recognize_plate(plate)
+    print(f"Recognized license plate: {plate_text}")
+    print(f"OCR confidence: {confidence:.2%}")
 
 
 if __name__ == "__main__":

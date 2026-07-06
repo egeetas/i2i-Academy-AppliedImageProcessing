@@ -5,6 +5,7 @@ screenshots/
 recordings/
 images/
 output/
+.easyocr/
 
 # Python-generated files
 __pycache__/
