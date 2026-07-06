@@ -31,6 +31,11 @@ def reduce_noise(grayscale):
     return cv2.GaussianBlur(grayscale, (5, 5), 0)
 
 
+def detect_edges(blurred):
+    """Detect strong intensity transitions with the Canny algorithm."""
+    return cv2.Canny(blurred, 50, 150)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Detect and read a vehicle plate.")
@@ -62,6 +67,11 @@ def main() -> None:
     blurred_path = Path("output/02_blurred.jpg")
     save_image(blurred, blurred_path)
     print(f"Blurred image saved: {blurred_path}")
+
+    edges = detect_edges(blurred)
+    edges_path = Path("output/03_edges.jpg")
+    save_image(edges, edges_path)
+    print(f"Edge image saved: {edges_path}")
 
 
 if __name__ == "__main__":
