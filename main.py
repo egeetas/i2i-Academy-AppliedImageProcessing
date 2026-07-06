@@ -36,6 +36,56 @@ def detect_edges(blurred):
     return cv2.Canny(blurred, 50, 150)
 
 
+def find_plate_bounds(edges):
+    """Select the most plate-like contour using geometry and image position."""
+    closing_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 3))
+    connected_edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, closing_kernel)
+    contours, _ = cv2.findContours(
+        connected_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
+    )
+    image_height, image_width = edges.shape
+    image_center_x = image_width / 2
+    candidates = []
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        x, y, width, height = cv2.boundingRect(contour)
+        if height == 0:
+            continue
+
+        aspect_ratio = width / height
+        center_distance = abs((x + width / 2) - image_center_x) / image_center_x
+        is_plate_sized = (
+            area >= 500
+            and 0.08 * image_width <= width <= 0.35 * image_width
+            and 0.04 * image_height <= height <= 0.20 * image_height
+        )
+        is_plate_shaped = 1.5 <= aspect_ratio <= 3.0
+        is_in_lower_half = y >= 0.50 * image_height
+
+        if is_plate_sized and is_plate_shaped and is_in_lower_half:
+            position_weight = max(0.1, 1 - center_distance) ** 4
+            candidates.append((area * position_weight, (x, y, width, height)))
+
+    if not candidates:
+        raise RuntimeError("No license plate contour was found.")
+
+    return max(candidates, key=lambda candidate: candidate[0])[1], len(contours)
+
+
+def crop_with_padding(image, bounds):
+    """Crop a detected plate while preserving a small border around it."""
+    x, y, width, height = bounds
+    image_height, image_width = image.shape[:2]
+    padding_x = round(width * 0.03)
+    padding_y = round(height * 0.10)
+    x1 = max(0, x - padding_x)
+    y1 = max(0, y - padding_y)
+    x2 = min(image_width, x + width + padding_x)
+    y2 = min(image_height, y + height + padding_y)
+    return image[y1:y2, x1:x2], (x1, y1, x2 - x1, y2 - y1)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Detect and read a vehicle plate.")
@@ -72,6 +122,22 @@ def main() -> None:
     edges_path = Path("output/03_edges.jpg")
     save_image(edges, edges_path)
     print(f"Edge image saved: {edges_path}")
+
+    plate_bounds, contour_count = find_plate_bounds(edges)
+    plate, padded_bounds = crop_with_padding(image, plate_bounds)
+    x, y, width, height = padded_bounds
+
+    detected = image.copy()
+    cv2.rectangle(detected, (x, y), (x + width, y + height), (0, 255, 0), 2)
+    detected_path = Path("output/04_detected_plate.jpg")
+    plate_path = Path("output/05_cropped_plate.jpg")
+    save_image(detected, detected_path)
+    save_image(plate, plate_path)
+
+    print(f"Contours found: {contour_count}")
+    print(f"Plate bounds: x={x}, y={y}, width={width}, height={height}")
+    print(f"Detected plate image saved: {detected_path}")
+    print(f"Cropped plate image saved: {plate_path}")
 
 
 if __name__ == "__main__":
