@@ -1,5 +1,5 @@
-# Assignment document and local evidence must not be published.
-AppliedImageProcessing.docx
+# Assignment documents and local evidence must not be published.
+*.docx
 ~$*.docx
 screenshots/
 recordings/
