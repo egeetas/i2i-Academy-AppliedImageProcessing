@@ -4,12 +4,17 @@ import argparse
 import re
 import warnings
 from pathlib import Path
+from typing import TypeAlias
 
 import cv2
 import easyocr
+import numpy as np
+
+Image: TypeAlias = np.ndarray
+Bounds: TypeAlias = tuple[int, int, int, int]
 
 
-def load_image(image_path: Path):
+def load_image(image_path: Path) -> Image:
     """Load an image from disk or raise a clear error."""
     image = cv2.imread(str(image_path))
     if image is None:
@@ -17,29 +22,29 @@ def load_image(image_path: Path):
     return image
 
 
-def save_image(image, output_path: Path) -> None:
+def save_image(image: Image, output_path: Path) -> None:
     """Save a processing result or raise a clear error."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(output_path), image):
         raise OSError(f"Image could not be saved: {output_path}")
 
 
-def convert_to_grayscale(image):
+def convert_to_grayscale(image: Image) -> Image:
     """Convert a BGR image to a single-channel grayscale image."""
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
-def reduce_noise(grayscale):
+def reduce_noise(grayscale: Image) -> Image:
     """Reduce small image details with a 5x5 Gaussian filter."""
     return cv2.GaussianBlur(grayscale, (5, 5), 0)
 
 
-def detect_edges(blurred):
+def detect_edges(blurred: Image) -> Image:
     """Detect strong intensity transitions with the Canny algorithm."""
     return cv2.Canny(blurred, 50, 150)
 
 
-def find_plate_bounds(edges):
+def find_plate_bounds(edges: Image) -> tuple[Bounds, int]:
     """Select the most plate-like contour using geometry and image position."""
     closing_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 3))
     connected_edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, closing_kernel)
@@ -48,7 +53,7 @@ def find_plate_bounds(edges):
     )
     image_height, image_width = edges.shape
     image_center_x = image_width / 2
-    candidates = []
+    candidates: list[tuple[float, Bounds]] = []
 
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -76,7 +81,7 @@ def find_plate_bounds(edges):
     return max(candidates, key=lambda candidate: candidate[0])[1], len(contours)
 
 
-def crop_with_padding(image, bounds):
+def crop_with_padding(image: Image, bounds: Bounds) -> tuple[Image, Bounds]:
     """Crop a detected plate while preserving a small border around it."""
     x, y, width, height = bounds
     image_height, image_width = image.shape[:2]
@@ -89,7 +94,7 @@ def crop_with_padding(image, bounds):
     return image[y1:y2, x1:x2], (x1, y1, x2 - x1, y2 - y1)
 
 
-def recognize_plate(plate):
+def recognize_plate(plate: Image) -> tuple[str, float]:
     """Read uppercase Latin letters and digits from a cropped plate."""
     warnings.filterwarnings("ignore", message=".*pin_memory.*", category=UserWarning)
     reader = easyocr.Reader(
@@ -120,6 +125,12 @@ def parse_args() -> argparse.Namespace:
         default=Path("images/car.jpg"),
         help="Path to the vehicle image (default: images/car.jpg)",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("output"),
+        help="Directory for processing results (default: output)",
+    )
     return parser.parse_args()
 
 
@@ -133,17 +144,17 @@ def main() -> None:
     print(f"Image size: {width}x{height}")
 
     grayscale = convert_to_grayscale(image)
-    grayscale_path = Path("output/01_grayscale.jpg")
+    grayscale_path = args.output_dir / "01_grayscale.jpg"
     save_image(grayscale, grayscale_path)
     print(f"Grayscale image saved: {grayscale_path}")
 
     blurred = reduce_noise(grayscale)
-    blurred_path = Path("output/02_blurred.jpg")
+    blurred_path = args.output_dir / "02_blurred.jpg"
     save_image(blurred, blurred_path)
     print(f"Blurred image saved: {blurred_path}")
 
     edges = detect_edges(blurred)
-    edges_path = Path("output/03_edges.jpg")
+    edges_path = args.output_dir / "03_edges.jpg"
     save_image(edges, edges_path)
     print(f"Edge image saved: {edges_path}")
 
@@ -153,8 +164,8 @@ def main() -> None:
 
     detected = image.copy()
     cv2.rectangle(detected, (x, y), (x + width, y + height), (0, 255, 0), 2)
-    detected_path = Path("output/04_detected_plate.jpg")
-    plate_path = Path("output/05_cropped_plate.jpg")
+    detected_path = args.output_dir / "04_detected_plate.jpg"
+    plate_path = args.output_dir / "05_cropped_plate.jpg"
     save_image(detected, detected_path)
     save_image(plate, plate_path)
 
